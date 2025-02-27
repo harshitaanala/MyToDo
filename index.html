@@ -2,35 +2,175 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My To-Do List App</title>
+    <title>Todo App</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 400px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .task {
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task.completed {
+            text-decoration: line-through;
+        }
+        .star {
+            font-size: 20px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .star.filled {
+            color: #ffd700;
+        }
+        .task-info {
+            display: flex;
+            align-items: center;
+        }
+        .task-name {
+            margin-right: 10px;
+        }
+        .float-end {
+            margin-left: 10px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        .btn {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to My To-Do List App!</h1>
-
-    <ul>
-        {% for task in tasks %}
-            <li>
-                <input type="checkbox" id="{{ loop.index }}" name="taskCheckbox" value="{{ loop.index }}">
-                <label for="{{ loop.index }}">{{ task }}</label>
-                {% if 'Completed' in task %}
-                    <button type="button" onclick="deleteTask({{ loop.index }})">Delete</button>
-                {% endif %}
-            </li>
-        {% endfor %}
-    </ul>
-    
+    <div class="container">
+        <h1 class="mb-4 text-center">Todo App</h1>
+        <div class="input-group mb-3">
+            <input id="task-input" type="text" class="form-control" placeholder="Enter new task">
+        </div>
+        <div class="input-group mb-3">
+            <input id="due-date-input" type="date" class="form-control" placeholder="Enter due date">
+        </div>
+        <button id="add-task-btn" class="btn btn-primary">Add Task</button>
+        <ul id="task-list" class="list-group mb-4"></ul>
+        <div class="mb-2 text-center">
+            <button id="filter-all-btn" class="btn btn-secondary w-25">All</button>
+            <button id="filter-pending-btn" class="btn btn-secondary w-25">Pending</button>
+            <button id="filter-completed-btn" class="btn btn-secondary w-25">Completed</button>
+            <button id="filter-urgent-btn" class="btn btn-secondary w-25">Urgent</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        let tasks = [];
+        const taskInput = document.getElementById('task-input');
+        const dueDateInput = document.getElementById('due-date-input');
+        const addTaskBtn = document.getElementById('add-task-btn');
+        const taskList = document.getElementById('task-list');
+        const filterAllBtn = document.getElementById('filter-all-btn');
+        const filterPendingBtn = document.getElementById('filter-pending-btn');
+        const filterCompletedBtn = document.getElementById('filter-completed-btn');
+        const filterUrgentBtn = document.getElementById('filter-urgent-btn');
+        const today = new Date();
+        const tomorrow = new Date(today.getTime() + 86400000);
+
+        addTaskBtn.addEventListener('click', addTask);
+        filterAllBtn.addEventListener('click', filterAll);
+        filterPendingBtn.addEventListener('click', filterPending);
+        filterCompletedBtn.addEventListener('click', filterCompleted);
+        filterUrgentBtn.addEventListener('click', filterUrgent);
+
+        function addTask() {
+            const taskText = taskInput.value.trim();
+            const dueDate = dueDateInput.value;
+            if (taskText && dueDate) {
+                tasks.push({ text: taskText, dueDate: new Date(dueDate), completed: false, priority: false });
+                taskInput.value = '';
+                dueDateInput.value = '';
+                renderTasks();
+            }
+        }
+
+        function renderTasks(filter = 'all') {
+            taskList.innerHTML = '';
+            tasks.forEach((task, index) => {
+                if (filter === 'all' || 
+                    (filter === 'pending' && !task.completed) || 
+                    (filter === 'completed' && task.completed) || 
+                    (filter === 'urgent' && !task.completed && task.dueDate.getTime() <= tomorrow.getTime())) {
+                    const taskHtml = `
+                        <li class="list-group-item task ${task.completed ? 'completed' : ''}">
+                            <i class="fa-solid fa-star ${task.priority ? 'filled' : ''}" style="color: ${task.priority ? '#ffd700' : 'black'}" data-index="${index}" onclick="togglePriority(this)"></i>
+                            <div class="task-info">
+                                <span class="task-name">${task.text}</span>
+                            </div>
+                            <span>(Due: ${formatDate(task.dueDate)})</span>
+                            <i class="fa-solid fa-check float-end me-2" data-index="${index}" onclick="toggleCompleted(this)"></i>
+                            <button class="btn btn-danger float-end" onclick="deleteTask(${index})">Delete</button>
+                        </li>
+                    `;
+                    taskList.insertAdjacentHTML('beforeend', taskHtml);
+                }
+            });
+        }
+
+        function filterAll() {
+            renderTasks('all');
+        }
+
+        function filterPending() {
+            renderTasks('pending');
+        }
+
+        function filterCompleted() {
+            renderTasks('completed');
+        }
+
+        function filterUrgent() {
+            renderTasks('urgent');
+        }
+
+        function toggleCompleted(icon) {
+            const index = parseInt(icon.dataset.index);
+            tasks[index].completed = !tasks[index].completed;
+            renderTasks();
+        }
+
         function deleteTask(index) {
-            document.getElementById('taskCheckbox-' + index).checked = false;
-            document.forms[0].submit();
+            tasks.splice(index, 1);
+            renderTasks();
+        }
+
+        function togglePriority(icon) {
+            const index = parseInt(icon.dataset.index);
+            tasks[index].priority = !tasks[index].priority;
+            icon.style.color = tasks[index].priority ? '#ffd700' : 'black';
+            renderTasks();
+        }
+
+        function formatDate(date) {
+            return `${padZero(date.getMonth() + 1)}/${padZero(date.getDate())}/${date.getFullYear()}`;
+        }
+
+        function padZero(num) {
+            return num < 10 ? `0${num}` : num;
         }
     </script>
-
-    <form method="POST" action="{{ url_for('add_task') }}">
-        <label for="newTask">Add Task:</label>
-        <input type="text" id="newTask" name="newTask" required>
-        <button type="submit">Add</button>
-    </form>
 </body>
 </html>
